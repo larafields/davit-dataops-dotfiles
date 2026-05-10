@@ -70,11 +70,22 @@ mkdir -p "$TARGET_DIR"
 # Generate a new UUID for the destination copy
 NEW_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
 
-# Copy the .jsonl file, rewriting the sessionId
-sed "s/$SESSION_ID/$NEW_ID/g" "$SOURCE_FILE" > "$TARGET_DIR/${NEW_ID}.jsonl"
-echo "Copied: ${SESSION_ID}.jsonl → ${NEW_ID}.jsonl"
-echo "  From: $SOURCE_DIR"
-echo "  To:   $TARGET_DIR"
+# Extract the old cwd from the source file
+OLD_CWD=$(grep -m1 -o '"cwd":"[^"]*"' "$SOURCE_FILE" 2>/dev/null | sed 's/"cwd":"//;s/"//')
+
+# Copy the .jsonl file, rewriting the sessionId and cwd
+if [ -n "$OLD_CWD" ] && [ "$OLD_CWD" != "$CURRENT_DIR" ]; then
+    sed "s/$SESSION_ID/$NEW_ID/g; s|\"cwd\":\"$OLD_CWD\"|\"cwd\":\"$CURRENT_DIR\"|g" "$SOURCE_FILE" > "$TARGET_DIR/${NEW_ID}.jsonl"
+    echo "Copied: ${SESSION_ID}.jsonl → ${NEW_ID}.jsonl"
+    echo "  From: $SOURCE_DIR"
+    echo "  To:   $TARGET_DIR"
+    echo "  Rewrote cwd: $OLD_CWD → $CURRENT_DIR"
+else
+    sed "s/$SESSION_ID/$NEW_ID/g" "$SOURCE_FILE" > "$TARGET_DIR/${NEW_ID}.jsonl"
+    echo "Copied: ${SESSION_ID}.jsonl → ${NEW_ID}.jsonl"
+    echo "  From: $SOURCE_DIR"
+    echo "  To:   $TARGET_DIR"
+fi
 
 # Copy subagents dir if it exists, rewriting sessionId refs
 SUBAGENTS_SOURCE="$SOURCE_DIR/$SESSION_ID"
